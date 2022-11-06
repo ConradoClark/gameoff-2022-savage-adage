@@ -21,7 +21,7 @@ public class CharacterMoveOnAction : BaseGameObject
 
     private void Character_OnActionPerformed(CharacterAction obj)
     {
-        var move = transform.GetAccessor().LocalPosition
+        var move = Character.transform.GetAccessor().LocalPosition
             .X
             .Increase(Direction.x * 1f)
             .Over(0.2f / Character.SpeedMultiplier)
@@ -34,7 +34,7 @@ public class CharacterMoveOnAction : BaseGameObject
 
     private void Character_OnActionFinished(CharacterAction obj)
     {
-        var move = transform.GetAccessor().LocalPosition
+        var move = Character.transform.GetAccessor().LocalPosition
             .X
             .Increase(-Direction.x * 1f)
             .Over(0.2f / Character.SpeedMultiplier)

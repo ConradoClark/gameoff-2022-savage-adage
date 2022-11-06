@@ -1,16 +1,12 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using Assets.Scripts.RPG;
 using Licht.Impl.Orchestration;
 using Licht.Unity.Objects;
-using UnityEditorInternal;
-using UnityEngine;
 
 public class Character : BaseGameObject
 {
-    public int MaxHP;
-    public int CurrentHP { get; protected set; }
+    public NumberCounter HP;
 
     public int AttackBonus;
     public int DefenseBonus;
@@ -23,9 +19,17 @@ public class Character : BaseGameObject
     public event Action<CharacterAction> OnActionPerformed;
     public event Action<CharacterAction> OnActionFinished;
 
+    public bool IsDead => HP.CurrentValue <= 0;
+
+    private Character _opposingCharacter;
+
     protected override void OnAwake()
     {
-        CurrentHP = MaxHP;
+        HP.ResetCounter();
+
+        _opposingCharacter = SceneObject<PlayerCharacterTag>.Instance().Character == this ? 
+            SceneObject<EnemyCharacterTag>.Instance().Character :
+            SceneObject<PlayerCharacterTag>.Instance().Character;
     }
 
     private void OnEnable()
@@ -37,7 +41,13 @@ public class Character : BaseGameObject
     {
         while (enabled && AI != null)
         {
+            while (_opposingCharacter.IsDead)
+            {
+                yield return TimeYields.WaitOneFrameX;
+            }
+
             CurrentAction = AI.GetNextAction();
+
             OnCurrentActionChanged?.Invoke(CurrentAction);
 
             yield return TimeYields.WaitSeconds(GameTimer, CurrentAction.ActionChargeInSeconds / SpeedMultiplier);
@@ -45,10 +55,30 @@ public class Character : BaseGameObject
             OnActionPerformed?.Invoke(CurrentAction);
 
             yield return TimeYields.WaitSeconds(GameTimer, CurrentAction.ActionDurationInSeconds / SpeedMultiplier);
+            CalculateAction();
 
             OnActionFinished?.Invoke(CurrentAction);
 
             yield return TimeYields.WaitOneFrameX;
         }
+    }
+
+    private void CalculateAction()
+    {
+        switch (CurrentAction.ActionType)
+        {
+            case CharacterActionType.Damage:
+                CalculateDamage(this, _opposingCharacter);
+                break;
+            default:
+                break;
+        }
+
+    }
+
+    private void CalculateDamage(Character source, Character target)
+    {
+        var damage = CurrentAction.Strength + source.AttackBonus;
+        target.HP.CurrentValue = Math.Clamp(target.HP.CurrentValue - damage, 0, target.HP.InitialValue);
     }
 }
